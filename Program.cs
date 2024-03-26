@@ -13,6 +13,14 @@ var app = builder.Build();
 
 var clientesConectados = new List<WebSocket>();
 
+// Lista de mensagens pré-criadas no servidor
+var mensagensPreCriadas = new List<string>
+{
+	"Bem-vindo ao chat!",
+	"Esta é uma mensagem de exemplo.",
+	"O servidor está pronto para receber suas mensagens."
+};
+
 app.UseWebSockets();
 
 app.Map("/ws", async context =>
@@ -21,6 +29,14 @@ app.Map("/ws", async context =>
 	{
 		var webSocket = await context.WebSockets.AcceptWebSocketAsync();
 		clientesConectados.Add(webSocket);
+
+		// Envia mensagens pré-criadas para o cliente assim que ele se conectar
+		foreach (var mensagem in mensagensPreCriadas)
+		{
+			var bufferMensagem = Encoding.UTF8.GetBytes(mensagem);
+			await webSocket.SendAsync(new ArraySegment<byte>(bufferMensagem), WebSocketMessageType.Text, true, CancellationToken.None);
+		}
+
 		await ReceberMensagens(webSocket);
 	}
 	else
@@ -43,6 +59,7 @@ async Task ReceberMensagens(WebSocket webSocket)
 			var mensagemRecebida = Encoding.UTF8.GetString(buffer, 0, resultadoRecebimento.Count);
 			Console.WriteLine($"Mensagem recebida do cliente: {mensagemRecebida}");
 
+			// Envie a mensagem para todos os clientes (exceto o remetente)
 			foreach (var cliente in clientesConectados)
 			{
 				if (cliente != webSocket && cliente.State == WebSocketState.Open)
